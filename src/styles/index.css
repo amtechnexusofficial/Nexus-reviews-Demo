@@ -1,0 +1,88 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  /* Whitelabel brand colors — override these per client, nothing else needs to change */
+  --brand-color: #7C3AED;
+  --brand-color-hover: #6D28D9;
+  --brand-color-soft: #F3EEFF;
+  --brand-color-2: #EC4899;
+}
+
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+:focus-visible {
+  outline: 2px solid var(--brand-color);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  min-height: 100dvh;
+  background: linear-gradient(160deg, #F5F3FF 0%, #FDF2F8 50%, #F0F9FF 100%);
+  background-attachment: fixed;
+}
+
+/* Glassmorphism card — the signature visual element of this design direction */
+.glass {
+  background: rgba(255, 255, 255, 0.65);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.8);
+  box-shadow: 0 8px 32px rgba(124, 58, 237, 0.08);
+}
+
+.brand-gradient-text {
+  background: linear-gradient(90deg, var(--brand-color), var(--brand-color-2));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* Prevents iOS Safari from auto-zooming the whole page when an input is
+   tapped — Safari does this automatically for ANY input/textarea/select
+   under 16px font size, regardless of what the design calls for elsewhere.
+   Fixes every form field across the entire app from this one rule, rather
+   than needing text-base on 50+ individual <input> elements. Desktop still
+   shows the smaller 14px given the min-width guard below. */
+@media (max-width: 767px) {
+  input, textarea, select {
+    font-size: 16px !important;
+  }
+}
+
+/* Long unbroken strings (URLs, emails, long review text with no spaces)
+   can overflow a narrow card instead of wrapping — this forces a break
+   rather than letting content push past the card edge on small screens. */
+body {
+  overflow-wrap: anywhere;
+}
+
+@keyframes nexus-slide-down {
+  from {
+    opacity: 0;
+    transform: translateY(-12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.nexus-arrival-banner {
+  animation: nexus-slide-down 0.25s ease-out;
+}
