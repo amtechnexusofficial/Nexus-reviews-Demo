@@ -380,13 +380,14 @@ export default function SettingsPage() {
               onClick={toggleAutoReply}
               disabled={togglingAutoReply}
               aria-pressed={autoReplyEnabled}
-              className={`w-12 h-7 rounded-full transition-colors relative shrink-0 ${
+              aria-label={autoReplyEnabled ? 'Turn off automatic AI replies' : 'Turn on automatic AI replies'}
+              className={`relative w-12 h-7 rounded-full transition-colors shrink-0 ${
                 autoReplyEnabled ? 'bg-brand' : 'bg-line'
               }`}
             >
               <span
-                className={`absolute top-1 w-5 h-5 rounded-full bg-white transition-transform ${
-                  autoReplyEnabled ? 'translate-x-6' : 'translate-x-1'
+                className={`pointer-events-none absolute top-1 left-1 h-5 w-5 rounded-full bg-white shadow transition-transform duration-200 ${
+                  autoReplyEnabled ? 'translate-x-5' : 'translate-x-0'
                 }`}
               />
             </button>
