@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Card } from '../../components/ui';
 import { Button } from '../../components/Button';
-import { billingApi, knowledgeApi, kioskApi, type KnowledgeEntry } from '../../lib/api';
+import { businessesApi, knowledgeApi, kioskApi, type KnowledgeEntry } from '../../lib/api';
 import { useActiveLocation } from '../../lib/useLocation';
 import { Sparkles, Upload, Trash2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
@@ -28,10 +28,6 @@ export default function SettingsPage() {
   const [uploadingPdf, setUploadingPdf] = useState(false);
   const pdfInputRef = useRef<HTMLInputElement>(null);
 
-  const [billing, setBilling] = useState<{ stripeConfigured: boolean; subscription: { plan: string; status: string } } | null>(null);
-  const [checkingOut, setCheckingOut] = useState(false);
-  const [message, setMessage] = useState('');
-
   const [autoReplyEnabled, setAutoReplyEnabled] = useState(false);
   const [togglingAutoReply, setTogglingAutoReply] = useState(false);
   const [kioskQuestions, setKioskQuestions] = useState<string[]>(['', '', '', '', '']);
@@ -39,15 +35,16 @@ export default function SettingsPage() {
   const [savingKioskQuestions, setSavingKioskQuestions] = useState(false);
   const kioskQuestionsDirty = kioskQuestions.some((q, i) => q !== (savedKioskQuestions[i] || ''));
 
+  const [googleReviewLink, setGoogleReviewLink] = useState('');
+  const [savedGoogleReviewLink, setSavedGoogleReviewLink] = useState('');
+  const [savingReviewLink, setSavingReviewLink] = useState(false);
+  const reviewLinkDirty = googleReviewLink.trim() !== savedGoogleReviewLink.trim();
+
   async function loadEntries() {
     if (!locationId) return;
     const { entries } = await knowledgeApi.list(locationId);
     setEntries(entries);
   }
-
-  useEffect(() => {
-    billingApi.status().then(setBilling).catch(() => {});
-  }, []);
 
   useEffect(() => {
     if (!locationId) {
@@ -59,6 +56,8 @@ export default function SettingsPage() {
       setAutoReplyEnabled(false);
       setKioskQuestions(['', '', '', '', '']);
       setSavedKioskQuestions(['', '', '', '', '']);
+      setGoogleReviewLink('');
+      setSavedGoogleReviewLink('');
       return;
     }
     setLoadingAiContext(true);
@@ -67,8 +66,9 @@ export default function SettingsPage() {
       knowledgeApi.list(locationId),
       knowledgeApi.getAutoReply(locationId),
       kioskApi.getCustomQuestions(locationId),
+      businessesApi.getLocation(locationId),
     ])
-      .then(([context, { entries }, autoReply, kiosk]) => {
+      .then(([context, { entries }, autoReply, kiosk, { location }]) => {
         setWebsiteUrl(context.websiteUrl);
         setCustomContext(context.customContext);
         setSavedWebsiteUrl(context.websiteUrl);
@@ -77,8 +77,11 @@ export default function SettingsPage() {
         setAutoReplyEnabled(Boolean(autoReply.enabled));
         setKioskQuestions(kiosk.questions);
         setSavedKioskQuestions(kiosk.questions);
+        const link = location?.googleReviewLink || '';
+        setGoogleReviewLink(link);
+        setSavedGoogleReviewLink(link);
       })
-      .catch((error) => showError(error.message || 'Could not load AI knowledge.'))
+      .catch((error) => showError(error.message || 'Could not load settings.'))
       .finally(() => setLoadingAiContext(false));
   }, [locationId]);
 
@@ -117,6 +120,22 @@ export default function SettingsPage() {
       showError(error.message || 'Could not save kiosk questions.');
     } finally {
       setSavingKioskQuestions(false);
+    }
+  }
+
+  async function saveReviewLink() {
+    if (!locationId || !reviewLinkDirty) return;
+    setSavingReviewLink(true);
+    try {
+      const { location } = await businessesApi.setGoogleReviewLink(locationId, googleReviewLink);
+      const link = location?.googleReviewLink || '';
+      setGoogleReviewLink(link);
+      setSavedGoogleReviewLink(link);
+      showSuccess('Google review link saved.');
+    } catch (error: any) {
+      showError(error.message || 'Could not save review link.');
+    } finally {
+      setSavingReviewLink(false);
     }
   }
 
@@ -220,17 +239,6 @@ export default function SettingsPage() {
     } finally {
       setUploadingPdf(false);
       if (pdfInputRef.current) pdfInputRef.current.value = '';
-    }
-  }
-
-  async function upgrade() {
-    setCheckingOut(true);
-    try {
-      const res = await billingApi.checkout('price_replace_with_real_stripe_price_id');
-      if (res.url) window.location.href = res.url;
-      else setMessage(res.error || 'Billing is not configured yet.');
-    } finally {
-      setCheckingOut(false);
     }
   }
 
@@ -417,30 +425,27 @@ export default function SettingsPage() {
         </Card>
       )}
 
-      {message && <p className="text-sm text-success mt-4">{message}</p>}
-
-      <Card className="mt-6">
-        <h2 className="font-semibold mb-1">Billing</h2>
-        {billing ? (
-          <>
-            <p className="text-sm text-ink-soft mb-3">
-              Current plan: <span className="font-medium text-ink capitalize">{billing.subscription.plan}</span>
-              {' · '}
-              <span className="capitalize">{billing.subscription.status}</span>
-            </p>
-            {!billing.stripeConfigured && (
-              <p className="text-xs text-warning bg-amber-50 border border-amber-200 rounded-lg p-3 mb-3">
-                Billing isn't connected yet — set STRIPE_SECRET_KEY to enable real subscriptions.
-              </p>
-            )}
-            <Button size="sm" onClick={upgrade} loading={checkingOut} disabled={!billing.stripeConfigured}>
-              Upgrade plan
+      {locationId && (
+        <Card className="mb-6">
+          <h2 className="font-semibold mb-1">Google review link</h2>
+          <p className="text-sm text-ink-soft mb-4">
+            Used when a customer taps Post on the kiosk — opens your Google review page so they can paste and
+            submit. Paste the write-a-review or Maps place link for your Google listing.
+          </p>
+          <div className="flex gap-2">
+            <input
+              type="url"
+              value={googleReviewLink}
+              onChange={(e) => setGoogleReviewLink(e.target.value)}
+              placeholder="https://g.page/r/.../review"
+              className="flex-1 border border-line rounded-lg p-2.5 text-sm focus:border-brand outline-none"
+            />
+            <Button size="sm" onClick={saveReviewLink} loading={savingReviewLink} disabled={!reviewLinkDirty}>
+              Save
             </Button>
-          </>
-        ) : (
-          <p className="text-sm text-ink-soft">Loading...</p>
-        )}
-      </Card>
+          </div>
+        </Card>
+      )}
 
       <p className="text-xs text-ink-soft text-center mt-8">
         <Link to="/legal/terms" className="underline">Terms</Link> · <Link to="/legal/privacy" className="underline">Privacy</Link>

@@ -74,15 +74,15 @@ function seedLocation(businessId: number, locationId: number, name: string, addr
     id: locationId,
     businessId,
     address,
-    googleReviewLink: 'https://g.page/r/demo-business/review',
+    googleReviewLink: 'https://maps.app.goo.gl/xK9mR2pQ7nLw4vTb8',
     googlePlaceId: 'ChIJdemo000000000000000000000',
     dmAutoReplyEnabled: false,
     managerPhone: '+1 (555) 019-2828',
     kioskQuestions: [
-      'Did you find all products?',
-      'How was the price?',
-      'How did the labours behave?',
-      'Anything else you would like to mention?',
+      'What did you enjoy most about your meal?',
+      'How was the service from our staff?',
+      'Was the atmosphere comfortable for you?',
+      'Anything we could improve for next time?',
       '',
     ],
   };
@@ -166,8 +166,30 @@ export function ensureDemoWebsiteUrl(db: DemoDb) {
   let changed = false;
   for (const business of Object.values(db.businesses)) {
     if (!business) continue;
-    if (!business.websiteUrl || business.websiteUrl === 'https://example.com') {
-      business.websiteUrl = 'https://amtechnexus.com/';
+    if (
+      !business.websiteUrl ||
+      business.websiteUrl === 'https://example.com' ||
+      business.websiteUrl === 'https://amtechnexus.com/' ||
+      business.websiteUrl === 'https://amtechnexus.com'
+    ) {
+      business.websiteUrl = 'https://www.harborandpine.demo/';
+      changed = true;
+    }
+  }
+  return changed;
+}
+
+/** Prefer a dummy Google review link for existing browser demos. */
+export function ensureDemoReviewLink(db: DemoDb) {
+  let changed = false;
+  for (const loc of Object.values(db.locations)) {
+    if (!loc) continue;
+    if (
+      !loc.googleReviewLink ||
+      loc.googleReviewLink === 'https://g.page/r/demo-business/review' ||
+      loc.googleReviewLink.includes('5763oeY3JVkaCppy7')
+    ) {
+      loc.googleReviewLink = 'https://maps.app.goo.gl/xK9mR2pQ7nLw4vTb8';
       changed = true;
     }
   }
@@ -175,20 +197,31 @@ export function ensureDemoWebsiteUrl(db: DemoDb) {
 }
 
 const DEFAULT_KIOSK_QUESTIONS = [
-  'Did you find all products?',
-  'How was the price?',
-  'How did the labours behave?',
-  'Anything else you would like to mention?',
+  'What did you enjoy most about your meal?',
+  'How was the service from our staff?',
+  'Was the atmosphere comfortable for you?',
+  'Anything we could improve for next time?',
   '',
 ];
 
 /** Seed kiosk questions on older browser demos. */
 export function ensureKioskQuestions(db: DemoDb) {
+  const restaurantDefaults = DEFAULT_KIOSK_QUESTIONS;
+  const oldDefaults = [
+    'Did you find all products?',
+    'How was the price?',
+    'How did the labours behave?',
+    'Anything else you would like to mention?',
+  ];
   let changed = false;
   for (const loc of Object.values(db.locations)) {
     if (!loc) continue;
-    if (!Array.isArray(loc.kioskQuestions)) {
-      loc.kioskQuestions = [...DEFAULT_KIOSK_QUESTIONS];
+    const current = Array.isArray(loc.kioskQuestions) ? loc.kioskQuestions : null;
+    const looksLikeOldDefaults =
+      current &&
+      oldDefaults.every((q, i) => (current[i] || '') === q);
+    if (!current || looksLikeOldDefaults) {
+      loc.kioskQuestions = [...restaurantDefaults];
       changed = true;
     }
   }
@@ -443,7 +476,7 @@ function seedBusiness(id: number, name: string) {
     plan: 'growth',
     subscriptionStatus: 'active',
     email: `owner+${id}@demo.local`,
-    websiteUrl: 'https://amtechnexus.com/',
+    websiteUrl: 'https://www.harborandpine.demo/',
     customContext: '',
     websiteContextFetchedAt: daysAgo(10),
     createdAt: daysAgo(200),
@@ -532,8 +565,9 @@ export function getDb(): DemoDb {
       const requestsFixed = ensureEmailOnlyRequests(cached as DemoDb);
       const competitorsFixed = ensureCompetitorRatings(cached as DemoDb);
       const websiteFixed = ensureDemoWebsiteUrl(cached as DemoDb);
+      const reviewLinkFixed = ensureDemoReviewLink(cached as DemoDb);
       const kioskFixed = ensureKioskQuestions(cached as DemoDb);
-      if (attentionFixed || requestsFixed || competitorsFixed || websiteFixed || kioskFixed) {
+      if (attentionFixed || requestsFixed || competitorsFixed || websiteFixed || reviewLinkFixed || kioskFixed) {
         saveDb(cached as DemoDb);
       }
       return cached as DemoDb;

@@ -76,6 +76,21 @@ export const businessesApi = {
     return delay({ business, locations });
   },
 
+  getLocation: async (locationId: number) => {
+    const db = getDb();
+    return delay({ location: db.locations[locationId] || null });
+  },
+
+  setGoogleReviewLink: async (locationId: number, googleReviewLink: string) => {
+    const db = getDb();
+    const loc = db.locations[locationId];
+    if (loc) {
+      loc.googleReviewLink = googleReviewLink.trim();
+      saveDb(db);
+    }
+    return delay({ location: loc });
+  },
+
   addLocation: async (body: { address?: string; googleReviewLink?: string; googlePlaceId?: string }) => {
     const db = getDb();
     const businessId = currentBusinessId();
@@ -141,11 +156,11 @@ export const reviewsApi = {
 
 // ---------------- kiosk ----------------
 const KIOSK_QUESTIONS: Record<number, string[]> = {
-  5: ['What made your visit great today?', 'Anything specific you\u2019d recommend to others?'],
+  5: ['What made your meal great today?', 'Any dish you’d recommend to others?'],
   4: ['What did you enjoy most?', 'Was there anything that could have been better?'],
-  3: ['What worked well for you today?', 'What would you like to see improved?'],
-  2: ['What went wrong today?', 'How can we make it right?'],
-  1: ['What went wrong today?', 'How can we make it right?'],
+  3: ['What worked well for you today?', 'What would you like to see improved on the menu or service?'],
+  2: ['What went wrong with your visit?', 'How can we make it right next time?'],
+  1: ['What went wrong with your visit?', 'How can we make it right next time?'],
 };
 
 export const kioskApi = {
