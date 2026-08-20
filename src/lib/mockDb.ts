@@ -162,6 +162,51 @@ function seedReviews(locationId: number) {
   return reviews;
 }
 
+/** Seed the Insights report list for older browser demos. */
+export function ensureInsightReports(db: DemoDb) {
+  if (db.analyticsSnapshots.length >= 3) return false;
+  db.analyticsSnapshots = [
+    {
+      id: db.nextLocalId++,
+      periodLabel: 'Last 30 days',
+      summary: 'Not enough reviews in this period to generate meaningful insights yet.',
+      recommendations: [],
+      reviewCountAnalyzed: 0,
+      createdAt: daysAgo(4),
+    },
+    {
+      id: db.nextLocalId++,
+      periodLabel: 'Last 30 days',
+      summary: 'Not enough reviews in this period to generate meaningful insights yet.',
+      recommendations: [],
+      reviewCountAnalyzed: 0,
+      createdAt: daysAgo(11),
+    },
+    {
+      id: db.nextLocalId++,
+      periodLabel: 'All reviews',
+      summary:
+        'The Rustic Table holds a strong local reputation with consistent praise for warm service, fair pricing, and a welcoming dining room. Guests frequently mention weekend brunch as a highlight. Friction shows up around peak-hour wait times and occasional payment delays at the counter — worth tightening staffing and checkout flow on busy evenings.',
+      recommendations: [
+        'Add a host during Saturday peak (6–8pm) to cut wait times.',
+        'Feature brunch specials in Google and social posts this week.',
+        'Follow up with guests who mentioned slow checkout.',
+      ],
+      reviewCountAnalyzed: 46,
+      createdAt: daysAgo(14),
+    },
+    {
+      id: db.nextLocalId++,
+      periodLabel: 'Last 30 days',
+      summary: 'Not enough reviews in this period to generate meaningful insights yet.',
+      recommendations: [],
+      reviewCountAnalyzed: 0,
+      createdAt: daysAgo(14),
+    },
+  ];
+  return true;
+}
+
 /** Seed last screening scan stats on older browser demos. */
 export function ensureScreeningScan(db: DemoDb) {
   let changed = false;
@@ -515,16 +560,41 @@ function seedFullDb(): DemoDb {
     screeningLogs: fresh.screeningLogs,
     analyticsSnapshots: [
       {
+        id: 4,
+        periodLabel: 'Last 30 days',
+        summary: 'Not enough reviews in this period to generate meaningful insights yet.',
+        recommendations: [],
+        reviewCountAnalyzed: 0,
+        createdAt: daysAgo(4),
+      },
+      {
+        id: 3,
+        periodLabel: 'Last 30 days',
+        summary: 'Not enough reviews in this period to generate meaningful insights yet.',
+        recommendations: [],
+        reviewCountAnalyzed: 0,
+        createdAt: daysAgo(11),
+      },
+      {
+        id: 2,
+        periodLabel: 'All reviews',
+        summary:
+          'The Rustic Table holds a strong local reputation with consistent praise for warm service, fair pricing, and a welcoming dining room. Guests frequently mention weekend brunch as a highlight. Friction shows up around peak-hour wait times and occasional payment delays at the counter — worth tightening staffing and checkout flow on busy evenings.',
+        recommendations: [
+          'Add a host during Saturday peak (6–8pm) to cut wait times.',
+          'Feature brunch specials in Google and social posts this week.',
+          'Follow up with guests who mentioned slow checkout.',
+        ],
+        reviewCountAnalyzed: 46,
+        createdAt: daysAgo(14),
+      },
+      {
         id: 1,
         periodLabel: 'Last 30 days',
-        summary: 'Ratings trended up this month, averaging 4.6★ across 14 reviews. Guests consistently praised staff friendliness and speed of service. A couple of reviews mentioned wait times during peak weekend hours.',
-        recommendations: [
-          'Consider adding a second host during Saturday peak hours (6–8pm) to reduce wait times.',
-          'Lean into "friendly staff" as a theme in social content — it\u2019s your most-mentioned strength.',
-          'Follow up personally with the two guests who mentioned slow service this month.',
-        ],
-        reviewCountAnalyzed: 14,
-        createdAt: daysAgo(2),
+        summary: 'Not enough reviews in this period to generate meaningful insights yet.',
+        recommendations: [],
+        reviewCountAnalyzed: 0,
+        createdAt: daysAgo(14),
       },
     ],
     competitors: fresh.competitors,
@@ -563,6 +633,7 @@ export function getDb(): DemoDb {
       const reviewLinkFixed = ensureDemoReviewLink(cached as DemoDb);
       const kioskFixed = ensureKioskQuestions(cached as DemoDb);
       const screeningFixed = ensureScreeningScan(cached as DemoDb);
+      const insightsFixed = ensureInsightReports(cached as DemoDb);
       if (
         attentionFixed ||
         requestsFixed ||
@@ -570,7 +641,8 @@ export function getDb(): DemoDb {
         websiteFixed ||
         reviewLinkFixed ||
         kioskFixed ||
-        screeningFixed
+        screeningFixed ||
+        insightsFixed
       ) {
         saveDb(cached as DemoDb);
       }

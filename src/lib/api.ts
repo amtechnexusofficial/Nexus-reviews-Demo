@@ -363,13 +363,19 @@ export const analyticsApi = {
       createdAt: new Date().toISOString(),
     };
     db.analyticsSnapshots.push(snapshot);
+    db.analyticsSnapshots = [...db.analyticsSnapshots]
+      .sort((a, b) => +new Date(b.createdAt) - +new Date(a.createdAt))
+      .slice(0, 4);
     saveDb(db);
     return delay({ snapshot }, 800);
   },
 
   list: async (_locationId: number) => {
     const db = getDb();
-    return delay({ snapshots: [...db.analyticsSnapshots].reverse() });
+    const snapshots = [...db.analyticsSnapshots]
+      .sort((a, b) => +new Date(b.createdAt) - +new Date(a.createdAt))
+      .slice(0, 4);
+    return delay({ snapshots });
   },
 };
 
