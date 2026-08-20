@@ -8,6 +8,7 @@ import {
   YAxis,
   CartesianGrid,
   Tooltip,
+  LabelList,
 } from 'recharts';
 import { Card, EmptyState, StarRating, Badge } from '../../components/ui';
 import { reviewsApi, type Review } from '../../lib/api';
@@ -309,9 +310,9 @@ export default function DashboardHome() {
                 No reviews in the last 60 days yet.
               </div>
             ) : (
-              <div style={{ width: '100%', height: 220 }}>
+              <div style={{ width: '100%', height: 240 }}>
                 <ResponsiveContainer>
-                  <BarChart data={dailyCounts} margin={{ top: 8, right: 4, left: -24, bottom: 0 }}>
+                  <BarChart data={dailyCounts} margin={{ top: 20, right: 8, left: 4, bottom: 8 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#EEE" vertical={false} />
                     <XAxis
                       dataKey="label"
@@ -320,13 +321,26 @@ export default function DashboardHome() {
                       tickLine={false}
                       interval={9}
                       minTickGap={16}
+                      label={{
+                        value: 'Date received',
+                        position: 'insideBottom',
+                        offset: -2,
+                        style: { fill: '#8A8A99', fontSize: 11 },
+                      }}
                     />
                     <YAxis
                       allowDecimals={false}
                       tick={{ fontSize: 11, fill: '#8A8A99' }}
                       axisLine={false}
                       tickLine={false}
-                      width={32}
+                      width={36}
+                      label={{
+                        value: 'Reviews',
+                        angle: -90,
+                        position: 'insideLeft',
+                        offset: 8,
+                        style: { fill: '#8A8A99', fontSize: 11, textAnchor: 'middle' },
+                      }}
                     />
                     <Tooltip
                       formatter={(value: number) => [value, 'Reviews']}
@@ -338,7 +352,14 @@ export default function DashboardHome() {
                       fill="var(--brand-color, #7C3AED)"
                       radius={[3, 3, 0, 0]}
                       maxBarSize={10}
-                    />
+                    >
+                      <LabelList
+                        dataKey="count"
+                        position="top"
+                        formatter={(value: number) => (value > 0 ? value : '')}
+                        style={{ fontSize: 10, fill: '#6B7280', fontWeight: 600 }}
+                      />
+                    </Bar>
                   </BarChart>
                 </ResponsiveContainer>
               </div>

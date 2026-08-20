@@ -122,7 +122,80 @@ function seedReviews(locationId: number) {
       reviewCreatedAt: daysAgo(i * 3 + 1),
     });
   }
+
+  // Unanswered low-star reviews from the last few days — powers the Overview "Needs attention" panel.
+  reviews.push(
+    {
+      id: idc++,
+      locationId,
+      reviewhookReviewId: 'demo-attention-1',
+      platform: 'google',
+      rating: 2,
+      authorName: 'Jordan M.',
+      text: 'Waited almost 40 minutes for our order and nobody checked in on us. Really disappointing for a weekday lunch.',
+      hasResponse: false,
+      responseText: null,
+      reviewCreatedAt: daysAgo(1),
+    },
+    {
+      id: idc++,
+      locationId,
+      reviewhookReviewId: 'demo-attention-2',
+      platform: 'google',
+      rating: 1,
+      authorName: 'Samira K.',
+      text: 'Table was sticky and the food came out cold. Manager never came over even after we asked.',
+      hasResponse: false,
+      responseText: null,
+      reviewCreatedAt: daysAgo(3),
+    }
+  );
+
   return reviews;
+}
+
+/** Ensure older browser demos pick up the attention reviews without a full reset. */
+export function ensureAttentionReviews(db: DemoDb) {
+  const attentionSeeds = [
+    {
+      reviewhookReviewId: 'demo-attention-1',
+      rating: 2,
+      authorName: 'Jordan M.',
+      text: 'Waited almost 40 minutes for our order and nobody checked in on us. Really disappointing for a weekday lunch.',
+      daysAgo: 1,
+    },
+    {
+      reviewhookReviewId: 'demo-attention-2',
+      rating: 1,
+      authorName: 'Samira K.',
+      text: 'Table was sticky and the food came out cold. Manager never came over even after we asked.',
+      daysAgo: 3,
+    },
+  ];
+
+  let changed = false;
+  for (const locationId of Object.keys(db.locations).map(Number)) {
+    for (const seed of attentionSeeds) {
+      const exists = db.reviews.some(
+        (r) => r.locationId === locationId && r.reviewhookReviewId === seed.reviewhookReviewId
+      );
+      if (exists) continue;
+      db.reviews.push({
+        id: db.nextLocalId++,
+        locationId,
+        reviewhookReviewId: seed.reviewhookReviewId,
+        platform: 'google',
+        rating: seed.rating,
+        authorName: seed.authorName,
+        text: seed.text,
+        hasResponse: false,
+        responseText: null,
+        reviewCreatedAt: daysAgo(seed.daysAgo),
+      });
+      changed = true;
+    }
+  }
+  return changed;
 }
 
 function seedKioskSessions(locationId: number) {
@@ -376,6 +449,9 @@ export function getDb(): DemoDb {
     const raw = localStorage.getItem(DB_KEY);
     if (raw) {
       cached = JSON.parse(raw);
+      if (ensureAttentionReviews(cached as DemoDb)) {
+        saveDb(cached as DemoDb);
+      }
       return cached as DemoDb;
     }
   } catch {
