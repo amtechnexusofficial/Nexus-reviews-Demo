@@ -154,12 +154,12 @@ function seedReviews(locationId: number) {
   return reviews;
 }
 
-/** Keep seeded competitor ratings at 4.4 / 4.5 / 4.6 for existing browser demos. */
+/** Keep seeded competitor ratings at 4.5 / 4.1 / 4.3 for existing browser demos. */
 export function ensureCompetitorRatings(db: DemoDb) {
   const targets: Record<string, number> = {
-    'Northside Bistro': 4.4,
-    'The Corner Kitchen': 4.5,
-    'Maple & Vine': 4.6,
+    'Northside Bistro': 4.5,
+    'The Corner Kitchen': 4.1,
+    'Maple & Vine': 4.3,
   };
   let changed = false;
   for (const c of db.competitors) {
@@ -284,9 +284,9 @@ function seedScreeningLogs() {
 
 function seedCompetitors(locationId: number) {
   return [
-    { id: 1, locationId, name: 'Northside Bistro', rating: 4.4, reviewCount: 312, lastCheckedAt: daysAgo(1), notes: 'Similar price point, slightly larger seating area.' },
-    { id: 2, locationId, name: 'The Corner Kitchen', rating: 4.5, reviewCount: 198, lastCheckedAt: daysAgo(2), notes: 'Newer, running frequent promotions.' },
-    { id: 3, locationId, name: 'Maple & Vine', rating: 4.6, reviewCount: 501, lastCheckedAt: daysAgo(1), notes: 'Market leader in the area, strong weekend brunch reviews.' },
+    { id: 1, locationId, name: 'Northside Bistro', rating: 4.5, reviewCount: 312, lastCheckedAt: daysAgo(1), notes: 'Similar price point, slightly larger seating area.' },
+    { id: 2, locationId, name: 'The Corner Kitchen', rating: 4.1, reviewCount: 198, lastCheckedAt: daysAgo(2), notes: 'Newer, running frequent promotions.' },
+    { id: 3, locationId, name: 'Maple & Vine', rating: 4.3, reviewCount: 501, lastCheckedAt: daysAgo(1), notes: 'Market leader in the area, strong weekend brunch reviews.' },
   ];
 }
 

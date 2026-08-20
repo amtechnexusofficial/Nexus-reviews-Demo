@@ -207,7 +207,7 @@ export default function CompetitorsPage() {
                 <div>
                   <div className="font-medium text-sm">{comp.name}</div>
                   <div className="text-xs text-ink-soft">
-                    {comp.rating ? (comp.rating / 10).toFixed(1) : '—'} ★ · {comp.reviewCount ?? '—'} reviews
+                    {comp.rating != null ? Number(comp.rating).toFixed(1) : '—'} ★ · {comp.reviewCount ?? '—'} reviews
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
