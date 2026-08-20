@@ -1,20 +1,15 @@
 import { useEffect, useState } from 'react';
 import { Card } from '../../components/ui';
 import { Button } from '../../components/Button';
-import { businessesApi, billingApi, feedbackApi, knowledgeApi } from '../../lib/api';
+import { billingApi, feedbackApi, knowledgeApi } from '../../lib/api';
 import { useActiveLocation } from '../../lib/useLocation';
-import { Check, Plus, Sparkles } from 'lucide-react';
+import { Sparkles } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useToast } from '../../lib/toast';
 
 export default function SettingsPage() {
-  const { locationId, locations, refreshLocations, setLocationId } = useActiveLocation();
+  const { locationId } = useActiveLocation();
   const { showSuccess, showError } = useToast();
-
-  const [address, setAddress] = useState('');
-  const [reviewLink, setReviewLink] = useState('');
-  const [addingLocation, setAddingLocation] = useState(false);
-  const [showAddLocation, setShowAddLocation] = useState(false);
 
   const [message, setMessage] = useState('');
   const [websiteUrl, setWebsiteUrl] = useState('');
@@ -168,72 +163,9 @@ export default function SettingsPage() {
     }
   }
 
-  async function addLocation() {
-    if (!address.trim()) return;
-    setAddingLocation(true);
-    try {
-      const { location } = await businessesApi.addLocation({ address, googleReviewLink: reviewLink });
-      await refreshLocations();
-      setLocationId(location.id);
-      setAddress('');
-      setReviewLink('');
-      setShowAddLocation(false);
-      setMessage('Location added.');
-    } finally {
-      setAddingLocation(false);
-    }
-  }
-
   return (
     <div className="p-5 md:p-8 max-w-xl mx-auto">
       <h1 className="font-display text-2xl font-semibold mb-6">Settings</h1>
-
-      <Card className="mb-6">
-        <div className="flex items-center justify-between mb-3">
-          <h2 className="font-semibold">Locations</h2>
-          <Button size="sm" variant="secondary" onClick={() => setShowAddLocation((v) => !v)}>
-            <Plus className="w-3.5 h-3.5" /> Add location
-          </Button>
-        </div>
-
-        {locations.length === 0 ? (
-          <p className="text-sm text-ink-soft">No locations yet — add one below.</p>
-        ) : (
-          <div className="space-y-2">
-            {locations.map((loc) => (
-              <div
-                key={loc.id}
-                className={`flex items-center gap-2 p-2.5 rounded-lg border text-sm ${
-                  loc.id === locationId ? 'border-brand bg-brand-soft' : 'border-line'
-                }`}
-              >
-                <Check className={`w-4 h-4 ${loc.id === locationId ? 'text-brand' : 'text-transparent'}`} />
-                {loc.address || `Location #${loc.id}`}
-              </div>
-            ))}
-          </div>
-        )}
-
-        {showAddLocation && (
-          <div className="mt-4 pt-4 border-t border-line space-y-2">
-            <input
-              value={address}
-              onChange={(e) => setAddress(e.target.value)}
-              placeholder="Address"
-              className="w-full border border-line rounded-lg p-2.5 text-sm focus:border-brand outline-none"
-            />
-            <input
-              value={reviewLink}
-              onChange={(e) => setReviewLink(e.target.value)}
-              placeholder="Google review link (g.page/r/.../review)"
-              className="w-full border border-line rounded-lg p-2.5 text-sm focus:border-brand outline-none"
-            />
-            <Button size="sm" onClick={addLocation} loading={addingLocation} disabled={!address.trim()}>
-              Save location
-            </Button>
-          </div>
-        )}
-      </Card>
 
       {locationId && (
         <Card className="mb-6">
