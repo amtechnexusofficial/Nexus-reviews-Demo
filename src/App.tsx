@@ -14,12 +14,10 @@ import AnalyticsPage from './pages/dashboard/AnalyticsPage';
 import CompetitorsPage from './pages/dashboard/CompetitorsPage';
 import RequestsPage from './pages/dashboard/RequestsPage';
 import EmployeesPage from './pages/dashboard/EmployeesPage';
-import AdvisorPage from './pages/dashboard/AdvisorPage';
 import ContentPage from './pages/dashboard/ContentPage';
 import DmInboxPage from './pages/dashboard/DmInboxPage';
 import PostsPage from './pages/dashboard/PostsPage';
 import ConnectionsPage from './pages/dashboard/ConnectionsPage';
-import AiAgentPage from './pages/dashboard/AiAgentPage';
 import FeedbackInboxPage from './pages/dashboard/FeedbackInboxPage';
 import ReviewWidgetPage from './pages/widget/ReviewWidgetPage';
 import AdminLayout from './pages/admin/AdminLayout';
@@ -73,11 +71,9 @@ export default function App() {
             <Route path="connections" element={<ConnectionsPage />} />
             <Route path="dm-inbox" element={<DmInboxPage />} />
             <Route path="posts" element={<PostsPage />} />
-            <Route path="ai-agent" element={<AiAgentPage />} />
             <Route path="feedback-inbox" element={<FeedbackInboxPage />} />
             <Route path="kiosk-reviews" element={<KioskSessionsPage />} />
             <Route path="insights" element={<AnalyticsPage />} />
-            <Route path="advisor" element={<AdvisorPage />} />
             <Route path="team" element={<EmployeesPage />} />
             <Route path="competitors" element={<CompetitorsPage />} />
             <Route path="content" element={<ContentPage />} />

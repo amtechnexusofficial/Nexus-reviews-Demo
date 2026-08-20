@@ -10,7 +10,6 @@ import {
   Users,
   Send,
   UserCircle2,
-  MessageCircle,
   Megaphone,
   LogOut,
   MessagesSquare,
@@ -61,11 +60,7 @@ const CATEGORIES = [
     key: 'ai',
     label: 'AI Tools',
     icon: Bot,
-    pages: [
-      { to: '/dashboard/insights', label: 'Insights', icon: Sparkles },
-      { to: '/dashboard/advisor', label: 'Advisor', icon: MessageCircle },
-      { to: '/dashboard/ai-agent', label: 'AI Agent', icon: Bot },
-    ],
+    pages: [{ to: '/dashboard/insights', label: 'Insights', icon: Sparkles }],
   },
   {
     key: 'business',
