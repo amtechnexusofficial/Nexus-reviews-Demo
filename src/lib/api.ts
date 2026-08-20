@@ -59,6 +59,7 @@ export interface KioskSession {
 
 export interface ScreeningLog {
   id: number;
+  locationId?: number;
   reviewText: string;
   verdict: string;
   category: string;
@@ -250,6 +251,7 @@ export const screeningApi = {
     const isSuspicious = suspiciousSignals.some((s) => text.includes(s)) || body.reviewText.length < 12;
     const log: ScreeningLog = {
       id: db.nextLocalId++,
+      locationId: body.locationId,
       reviewText: body.reviewText,
       verdict: isSuspicious ? 'flagged' : 'genuine',
       category: isSuspicious ? 'suspicious' : 'general',
@@ -264,9 +266,72 @@ export const screeningApi = {
     return delay({ log, ...log });
   },
 
-  history: async (_locationId: number) => {
+  history: async (locationId: number) => {
     const db = getDb();
-    return delay({ logs: [...db.screeningLogs].reverse() });
+    return delay({
+      logs: db.screeningLogs
+        .filter((l) => !l.locationId || l.locationId === locationId)
+        .slice()
+        .reverse(),
+    });
+  },
+
+  status: async (locationId: number) => {
+    const db = getDb();
+    const loc = db.locations[locationId];
+    const lastScan = loc?.lastScreeningScan || null;
+    const flagged = db.screeningLogs.filter(
+      (l) => l.locationId === locationId && /flagged|likely violation/i.test(l.verdict)
+    );
+    return delay({
+      lastScan: lastScan
+        ? {
+            scanned: lastScan.scanned ?? 0,
+            flagged: lastScan.flagged ?? 0,
+            at: lastScan.at,
+          }
+        : { scanned: 0, flagged: 0, at: new Date().toISOString() },
+      flagged,
+    });
+  },
+
+  screenUnscanned: async (locationId: number) => {
+    const db = getDb();
+    const reviews = db.reviews.filter((r) => r.locationId === locationId && r.rating <= 3);
+    const already = new Set(
+      db.screeningLogs
+        .filter((l) => !l.locationId || l.locationId === locationId)
+        .map((l) => l.reviewText)
+    );
+    let scanned = 0;
+    let flaggedCount = 0;
+    for (const review of reviews) {
+      const text = (review.text || '').trim();
+      if (!text || already.has(text)) continue;
+      scanned += 1;
+      const lower = text.toLowerCase();
+      const suspiciousSignals = ['scam', 'never go', 'fake', 'worst ever', 'sue', 'lawyer'];
+      const isSuspicious = suspiciousSignals.some((s) => lower.includes(s)) || text.length < 12;
+      if (isSuspicious) flaggedCount += 1;
+      db.screeningLogs.push({
+        id: db.nextLocalId++,
+        locationId,
+        reviewText: text,
+        verdict: isSuspicious ? 'flagged' : 'genuine',
+        category: isSuspicious ? 'suspicious' : 'service',
+        reasoning: isSuspicious
+          ? 'Contains inflammatory or vague language without specific, checkable details about a visit or order.'
+          : 'References specific, plausible details consistent with a genuine customer visit.',
+        flagText: isSuspicious ? 'Consider reporting to the platform for policy review.' : '',
+        createdAt: new Date().toISOString(),
+      });
+    }
+    const loc = db.locations[locationId];
+    if (loc) {
+      loc.lastScreeningScan = { scanned, flagged: flaggedCount, at: new Date().toISOString() };
+    }
+    saveDb(db);
+    return delay({ scanned, flagged: flaggedCount, at: loc?.lastScreeningScan?.at });
   },
 };
 

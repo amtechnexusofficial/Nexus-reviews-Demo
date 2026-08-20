@@ -85,6 +85,7 @@ function seedLocation(businessId: number, locationId: number, name: string, addr
       'Anything we could improve for next time?',
       '',
     ],
+    lastScreeningScan: { scanned: 0, flagged: 0, at: new Date().toISOString() },
   };
 }
 
@@ -159,6 +160,19 @@ function seedReviews(locationId: number) {
   );
 
   return reviews;
+}
+
+/** Seed last screening scan stats on older browser demos. */
+export function ensureScreeningScan(db: DemoDb) {
+  let changed = false;
+  for (const loc of Object.values(db.locations)) {
+    if (!loc) continue;
+    if (!loc.lastScreeningScan) {
+      loc.lastScreeningScan = { scanned: 0, flagged: 0, at: new Date().toISOString() };
+      changed = true;
+    }
+  }
+  return changed;
 }
 
 /** Prefer the demo website URL shown in Settings for existing browser demos. */
@@ -334,26 +348,7 @@ function seedKioskSessions(locationId: number) {
 }
 
 function seedScreeningLogs() {
-  return [
-    {
-      id: 1,
-      reviewText: "This place is a scam, don't ever go here!!!",
-      verdict: 'flagged',
-      category: 'suspicious',
-      reasoning: 'Vague accusation with no specific details, no order/visit reference, and inflammatory language typical of spam or competitor reviews.',
-      flagText: 'Consider reporting to the platform for policy violation.',
-      createdAt: daysAgo(6),
-    },
-    {
-      id: 2,
-      reviewText: 'Food came out cold and it took 40 minutes.',
-      verdict: 'genuine',
-      category: 'service',
-      reasoning: 'Specific, plausible complaint referencing wait time and food temperature — consistent with a real visit.',
-      flagText: '',
-      createdAt: daysAgo(3),
-    },
-  ];
+  return [];
 }
 
 function seedCompetitors(locationId: number) {
@@ -567,7 +562,16 @@ export function getDb(): DemoDb {
       const websiteFixed = ensureDemoWebsiteUrl(cached as DemoDb);
       const reviewLinkFixed = ensureDemoReviewLink(cached as DemoDb);
       const kioskFixed = ensureKioskQuestions(cached as DemoDb);
-      if (attentionFixed || requestsFixed || competitorsFixed || websiteFixed || reviewLinkFixed || kioskFixed) {
+      const screeningFixed = ensureScreeningScan(cached as DemoDb);
+      if (
+        attentionFixed ||
+        requestsFixed ||
+        competitorsFixed ||
+        websiteFixed ||
+        reviewLinkFixed ||
+        kioskFixed ||
+        screeningFixed
+      ) {
         saveDb(cached as DemoDb);
       }
       return cached as DemoDb;

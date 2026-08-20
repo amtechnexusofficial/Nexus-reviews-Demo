@@ -3,33 +3,55 @@ import { Card, Badge, EmptyState } from '../../components/ui';
 import { Button } from '../../components/Button';
 import { screeningApi, ScreeningLog } from '../../lib/api';
 import { useActiveLocation } from '../../lib/useLocation';
-import { ShieldAlert, Copy } from 'lucide-react';
+import { Shield } from 'lucide-react';
+import { useToast } from '../../lib/toast';
+
+type LastScan = { scanned: number; flagged: number; at: string };
 
 export default function ScreeningPage() {
   const { locationId } = useActiveLocation();
-  const [text, setText] = useState('');
-  const [context, setContext] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState<ScreeningLog | null>(null);
-  const [history, setHistory] = useState<ScreeningLog[]>([]);
-  const [copied, setCopied] = useState(false);
+  const { showSuccess, showError } = useToast();
+  const [lastScan, setLastScan] = useState<LastScan | null>(null);
+  const [flagged, setFlagged] = useState<ScreeningLog[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [scanning, setScanning] = useState(false);
 
-  useEffect(() => {
+  async function load() {
     if (!locationId) return;
-    screeningApi.history(locationId).then(({ logs }) => setHistory(logs));
-  }, [locationId]);
-
-  async function check() {
-    if (!locationId || !text.trim()) return;
     setLoading(true);
-    setResult(null);
     try {
-      const res = await screeningApi.check({ locationId, reviewText: text, ownerContext: context });
-      setResult(res as any);
-      const { logs } = await screeningApi.history(locationId);
-      setHistory(logs);
+      const { lastScan, flagged } = await screeningApi.status(locationId);
+      setLastScan(lastScan);
+      setFlagged(flagged);
+    } catch (e: any) {
+      showError(e.message || 'Could not load screening status.');
     } finally {
       setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [locationId]);
+
+  async function screenNow() {
+    if (!locationId) return;
+    setScanning(true);
+    try {
+      const res = await screeningApi.screenUnscanned(locationId);
+      setLastScan({ scanned: res.scanned, flagged: res.flagged, at: res.at || new Date().toISOString() });
+      const { flagged } = await screeningApi.status(locationId);
+      setFlagged(flagged);
+      showSuccess(
+        res.scanned === 0
+          ? 'No unscanned low-star reviews right now.'
+          : `Screened ${res.scanned} review${res.scanned === 1 ? '' : 's'} — ${res.flagged} flagged.`
+      );
+    } catch (e: any) {
+      showError(e.message || 'Screening failed.');
+    } finally {
+      setScanning(false);
     }
   }
 
@@ -37,82 +59,79 @@ export default function ScreeningPage() {
     return <EmptyState title="No business connected" body="Connect a business in Settings first." />;
   }
 
-  const isViolation = result && /likely violation/i.test(result.verdict);
+  function formatScanTime(iso: string) {
+    return new Date(iso).toLocaleString(undefined, {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  }
 
   return (
     <div className="p-5 md:p-8 max-w-2xl mx-auto">
-      <h1 className="font-display text-2xl font-semibold mb-1">Screen a review</h1>
-      <p className="text-sm text-ink-soft mb-1 max-w-lg">
-        For reviews that landed directly on Google that look off. This checks against Google's actual content
-        policies — spam, conflicts of interest, harassment.
+      <h1 className="font-display text-2xl font-semibold mb-2">Screening</h1>
+      <p className="text-sm text-ink-soft mb-6 leading-relaxed">
+        Reviews rated 3★ or lower are checked automatically for Google policy issues (spam, conflicts of
+        interest, harassment) — not for being negative. New low-star reviews are screened as they sync in.{' '}
+        <span className="font-medium text-ink">
+          4–5★ reviews are skipped. It will never flag a review for being negative.
+        </span>
       </p>
-      <p className="text-sm font-medium text-ink mb-6">It will never flag a review for being negative.</p>
 
-      <Card className="mb-6">
-        <label className="block text-sm font-medium mb-1.5">Paste the review text</label>
-        <textarea
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          rows={4}
-          placeholder="Paste the review exactly as it appears on Google..."
-          className="w-full border border-line rounded-lg p-3 text-sm mb-3 focus:border-brand outline-none resize-none"
-        />
-        <label className="block text-sm font-medium mb-1.5">Context (optional)</label>
-        <input
-          value={context}
-          onChange={(e) => setContext(e.target.value)}
-          placeholder="e.g. no record of this person ordering..."
-          className="w-full border border-line rounded-lg p-2.5 text-sm mb-4 focus:border-brand outline-none"
-        />
-        <Button onClick={check} loading={loading} disabled={!text.trim()}>
-          <ShieldAlert className="w-4 h-4" /> Check against policy
-        </Button>
-
-        {result && (
-          <div className="mt-5 pt-5 border-t border-line">
-            <div className="flex items-center gap-2 mb-2">
-              <Badge tone={isViolation ? 'danger' : 'neutral'}>{result.verdict}</Badge>
-              {result.category !== 'none' && <span className="text-xs text-ink-soft">{result.category}</span>}
-            </div>
-            <p className="text-sm leading-relaxed mb-3">{result.reasoning}</p>
-            {isViolation && result.flagText !== 'N/A' && (
-              <div>
-                <label className="block text-xs font-medium text-ink-soft mb-1.5">
-                  Suggested reasoning for Google's flag form
-                </label>
-                <textarea readOnly value={result.flagText} rows={3} className="w-full border border-line rounded-lg p-2.5 text-sm bg-paper mb-2 resize-none" />
-                <Button
-                  size="sm"
-                  variant="secondary"
-                  onClick={() => {
-                    navigator.clipboard.writeText(result.flagText);
-                    setCopied(true);
-                    setTimeout(() => setCopied(false), 1500);
-                  }}
-                >
-                  <Copy className="w-3.5 h-3.5" /> {copied ? 'Copied' : 'Copy reasoning'}
-                </Button>
-              </div>
-            )}
-          </div>
-        )}
-      </Card>
-
-      <h2 className="text-sm font-semibold text-ink-soft uppercase tracking-wide mb-3">Previously screened</h2>
-      {history.length === 0 ? (
-        <p className="text-sm text-ink-soft">Nothing screened yet.</p>
+      {loading ? (
+        <p className="text-sm text-ink-soft">Loading...</p>
       ) : (
-        <div className="space-y-2">
-          {history.map((h) => (
-            <Card key={h.id} className="py-3">
-              <div className="flex items-center justify-between mb-1">
-                <Badge tone={/likely violation/i.test(h.verdict) ? 'danger' : 'neutral'}>{h.verdict}</Badge>
-                <span className="text-xs text-ink-soft">{new Date(h.createdAt).toLocaleDateString()}</span>
+        <>
+          <Card className="mb-6">
+            <h2 className="font-semibold text-sm mb-3">Last scan</h2>
+            <div className="grid grid-cols-2 gap-3 mb-3">
+              <div className="rounded-xl border border-line bg-paper/60 p-3">
+                <div className="text-xs text-ink-soft mb-1">Reviews scanned</div>
+                <div className="font-display text-2xl font-semibold">{lastScan?.scanned ?? 0}</div>
               </div>
-              <p className="text-xs text-ink-soft italic">"{h.reviewText.slice(0, 120)}{h.reviewText.length > 120 ? '...' : ''}"</p>
-            </Card>
-          ))}
-        </div>
+              <div className="rounded-xl border border-line bg-paper/60 p-3">
+                <div className="text-xs text-ink-soft mb-1">Flagged</div>
+                <div className="font-display text-2xl font-semibold text-danger">{lastScan?.flagged ?? 0}</div>
+              </div>
+            </div>
+            {lastScan?.at && (
+              <p className="text-xs text-ink-soft mb-4">{formatScanTime(lastScan.at)}</p>
+            )}
+            <Button size="sm" variant="secondary" onClick={screenNow} loading={scanning}>
+              <Shield className="w-3.5 h-3.5" /> Screen unscanned now
+            </Button>
+          </Card>
+
+          <h2 className="text-sm font-semibold text-ink-soft uppercase tracking-wide mb-3">
+            Flagged reviews
+          </h2>
+          {flagged.length === 0 ? (
+            <p className="text-sm text-ink-soft">No policy flags yet for this location.</p>
+          ) : (
+            <div className="space-y-2">
+              {flagged.map((h) => (
+                <Card key={h.id} className="py-3">
+                  <div className="flex items-center justify-between mb-1 gap-2">
+                    <Badge tone="danger">{h.verdict}</Badge>
+                    <span className="text-xs text-ink-soft">
+                      {new Date(h.createdAt).toLocaleDateString()}
+                    </span>
+                  </div>
+                  {h.category && h.category !== 'none' && (
+                    <div className="text-xs text-ink-soft mb-1 capitalize">{h.category}</div>
+                  )}
+                  <p className="text-xs text-ink-soft italic mb-2">
+                    &quot;{h.reviewText.slice(0, 160)}
+                    {h.reviewText.length > 160 ? '…' : ''}&quot;
+                  </p>
+                  {h.reasoning && <p className="text-xs text-ink leading-relaxed">{h.reasoning}</p>}
+                </Card>
+              ))}
+            </div>
+          )}
+        </>
       )}
     </div>
   );
