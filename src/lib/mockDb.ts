@@ -76,8 +76,15 @@ function seedLocation(businessId: number, locationId: number, name: string, addr
     address,
     googleReviewLink: 'https://g.page/r/demo-business/review',
     googlePlaceId: 'ChIJdemo000000000000000000000',
-    dmAutoReplyEnabled: true,
+    dmAutoReplyEnabled: false,
     managerPhone: '+1 (555) 019-2828',
+    kioskQuestions: [
+      'Did you find all products?',
+      'How was the price?',
+      'How did the labours behave?',
+      'Anything else you would like to mention?',
+      '',
+    ],
   };
 }
 
@@ -161,6 +168,27 @@ export function ensureDemoWebsiteUrl(db: DemoDb) {
     if (!business) continue;
     if (!business.websiteUrl || business.websiteUrl === 'https://example.com') {
       business.websiteUrl = 'https://amtechnexus.com/';
+      changed = true;
+    }
+  }
+  return changed;
+}
+
+const DEFAULT_KIOSK_QUESTIONS = [
+  'Did you find all products?',
+  'How was the price?',
+  'How did the labours behave?',
+  'Anything else you would like to mention?',
+  '',
+];
+
+/** Seed kiosk questions on older browser demos. */
+export function ensureKioskQuestions(db: DemoDb) {
+  let changed = false;
+  for (const loc of Object.values(db.locations)) {
+    if (!loc) continue;
+    if (!Array.isArray(loc.kioskQuestions)) {
+      loc.kioskQuestions = [...DEFAULT_KIOSK_QUESTIONS];
       changed = true;
     }
   }
@@ -504,7 +532,8 @@ export function getDb(): DemoDb {
       const requestsFixed = ensureEmailOnlyRequests(cached as DemoDb);
       const competitorsFixed = ensureCompetitorRatings(cached as DemoDb);
       const websiteFixed = ensureDemoWebsiteUrl(cached as DemoDb);
-      if (attentionFixed || requestsFixed || competitorsFixed || websiteFixed) {
+      const kioskFixed = ensureKioskQuestions(cached as DemoDb);
+      if (attentionFixed || requestsFixed || competitorsFixed || websiteFixed || kioskFixed) {
         saveDb(cached as DemoDb);
       }
       return cached as DemoDb;

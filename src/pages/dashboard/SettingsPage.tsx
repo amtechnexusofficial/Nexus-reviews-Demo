@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Card } from '../../components/ui';
 import { Button } from '../../components/Button';
-import { billingApi, feedbackApi, knowledgeApi, type KnowledgeEntry } from '../../lib/api';
+import { billingApi, knowledgeApi, kioskApi, type KnowledgeEntry } from '../../lib/api';
 import { useActiveLocation } from '../../lib/useLocation';
 import { Sparkles, Upload, Trash2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
@@ -11,7 +11,6 @@ export default function SettingsPage() {
   const { locationId } = useActiveLocation();
   const { showSuccess, showError } = useToast();
 
-  const [message, setMessage] = useState('');
   const [websiteUrl, setWebsiteUrl] = useState('');
   const [customContext, setCustomContext] = useState('');
   const [savedWebsiteUrl, setSavedWebsiteUrl] = useState('');
@@ -30,20 +29,15 @@ export default function SettingsPage() {
   const pdfInputRef = useRef<HTMLInputElement>(null);
 
   const [billing, setBilling] = useState<{ stripeConfigured: boolean; subscription: { plan: string; status: string } } | null>(null);
-  const [managerPhone, setManagerPhone] = useState('');
-  const [savingPhone, setSavingPhone] = useState(false);
   const [checkingOut, setCheckingOut] = useState(false);
+  const [message, setMessage] = useState('');
 
-  async function saveManagerPhone() {
-    if (!locationId) return;
-    setSavingPhone(true);
-    try {
-      await feedbackApi.setManagerPhone(locationId, managerPhone);
-      setMessage('Manager phone saved.');
-    } finally {
-      setSavingPhone(false);
-    }
-  }
+  const [autoReplyEnabled, setAutoReplyEnabled] = useState(false);
+  const [togglingAutoReply, setTogglingAutoReply] = useState(false);
+  const [kioskQuestions, setKioskQuestions] = useState<string[]>(['', '', '', '', '']);
+  const [savedKioskQuestions, setSavedKioskQuestions] = useState<string[]>(['', '', '', '', '']);
+  const [savingKioskQuestions, setSavingKioskQuestions] = useState(false);
+  const kioskQuestionsDirty = kioskQuestions.some((q, i) => q !== (savedKioskQuestions[i] || ''));
 
   async function loadEntries() {
     if (!locationId) return;
@@ -62,20 +56,69 @@ export default function SettingsPage() {
       setSavedWebsiteUrl('');
       setSavedCustomContext('');
       setEntries([]);
+      setAutoReplyEnabled(false);
+      setKioskQuestions(['', '', '', '', '']);
+      setSavedKioskQuestions(['', '', '', '', '']);
       return;
     }
     setLoadingAiContext(true);
-    Promise.all([knowledgeApi.getContext(locationId), knowledgeApi.list(locationId)])
-      .then(([context, { entries }]) => {
+    Promise.all([
+      knowledgeApi.getContext(locationId),
+      knowledgeApi.list(locationId),
+      knowledgeApi.getAutoReply(locationId),
+      kioskApi.getCustomQuestions(locationId),
+    ])
+      .then(([context, { entries }, autoReply, kiosk]) => {
         setWebsiteUrl(context.websiteUrl);
         setCustomContext(context.customContext);
         setSavedWebsiteUrl(context.websiteUrl);
         setSavedCustomContext(context.customContext);
         setEntries(entries);
+        setAutoReplyEnabled(Boolean(autoReply.enabled));
+        setKioskQuestions(kiosk.questions);
+        setSavedKioskQuestions(kiosk.questions);
       })
       .catch((error) => showError(error.message || 'Could not load AI knowledge.'))
       .finally(() => setLoadingAiContext(false));
   }, [locationId]);
+
+  async function toggleAutoReply() {
+    if (!locationId) return;
+    setTogglingAutoReply(true);
+    try {
+      const result = await knowledgeApi.setAutoReply(locationId, !autoReplyEnabled);
+      setAutoReplyEnabled(result.enabled);
+      if (!result.enabled) {
+        showSuccess('AI auto-reply is off.');
+      } else if (result.webhook && !result.webhook.ok) {
+        showError(
+          result.webhook.error ||
+            'Auto-reply is on, but the webhook could not be registered — replies will not send until that is fixed.'
+        );
+      } else {
+        showSuccess('AI auto-reply is on. New DMs will be answered from your AI knowledge when possible.');
+      }
+    } catch (error: any) {
+      showError(error.message || 'Could not update AI auto-reply.');
+    } finally {
+      setTogglingAutoReply(false);
+    }
+  }
+
+  async function saveKioskQuestions() {
+    if (!locationId || !kioskQuestionsDirty) return;
+    setSavingKioskQuestions(true);
+    try {
+      const { questions } = await kioskApi.saveCustomQuestions(locationId, kioskQuestions);
+      setKioskQuestions(questions);
+      setSavedKioskQuestions(questions);
+      showSuccess('Kiosk questions saved.');
+    } catch (error: any) {
+      showError(error.message || 'Could not save kiosk questions.');
+    } finally {
+      setSavingKioskQuestions(false);
+    }
+  }
 
   async function saveAiContext() {
     if (!locationId || !aiContextDirty) return;
@@ -315,35 +358,66 @@ export default function SettingsPage() {
 
       {locationId && (
         <Card className="mb-6">
-          <h2 className="font-semibold mb-1">Connect Google Business</h2>
-          <p className="text-sm text-ink-soft">
-            Reviews and posting both use the same connection now — go to{' '}
-            <a href="/dashboard/connections" className="text-brand underline">Connections</a> and click
-            &quot;Connect&quot; under Google Business. No separate linking step needed here anymore.
+          <div className="flex items-center justify-between gap-4">
+            <div className="min-w-0">
+              <h2 className="font-semibold mb-1">Automatic AI replies to DMs</h2>
+              <p className="text-sm text-ink-soft leading-relaxed">
+                Off by default. When on, the AI answers only from your website crawl and AI knowledge. If it
+                doesn&apos;t know, or the customer asks for a person, it tells them a human will contact them
+                soon and flags the chat for you.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={toggleAutoReply}
+              disabled={togglingAutoReply}
+              aria-pressed={autoReplyEnabled}
+              className={`w-12 h-7 rounded-full transition-colors relative shrink-0 ${
+                autoReplyEnabled ? 'bg-brand' : 'bg-line'
+              }`}
+            >
+              <span
+                className={`absolute top-1 w-5 h-5 rounded-full bg-white transition-transform ${
+                  autoReplyEnabled ? 'translate-x-6' : 'translate-x-1'
+                }`}
+              />
+            </button>
+          </div>
+        </Card>
+      )}
+
+      {locationId && (
+        <Card className="mb-6">
+          <h2 className="font-semibold mb-1">Kiosk review questions</h2>
+          <p className="text-sm text-ink-soft mb-4">
+            These questions appear after a customer picks stars on your QR kiosk. Leave blank to use
+            rating-based defaults. Up to 5 questions.
           </p>
+          <div className="space-y-2 mb-4">
+            {kioskQuestions.map((q, i) => (
+              <input
+                key={i}
+                value={q}
+                onChange={(e) =>
+                  setKioskQuestions((prev) => prev.map((item, idx) => (idx === i ? e.target.value : item)))
+                }
+                placeholder={`Question ${i + 1}`}
+                className="w-full border border-line rounded-lg p-2.5 text-sm focus:border-brand outline-none"
+              />
+            ))}
+          </div>
+          <Button
+            size="sm"
+            onClick={saveKioskQuestions}
+            loading={savingKioskQuestions}
+            disabled={!kioskQuestionsDirty || savingKioskQuestions}
+          >
+            Save questions
+          </Button>
         </Card>
       )}
 
       {message && <p className="text-sm text-success mt-4">{message}</p>}
-
-      <Card className="mt-6">
-        <h2 className="font-semibold mb-1">Urgent feedback alerts</h2>
-        <p className="text-sm text-ink-soft mb-3">
-          When a customer sends private feedback, this number gets an SMS immediately, followed by a phone
-          call — needs Twilio configured to actually deliver.
-        </p>
-        <div className="flex gap-2">
-          <input
-            value={managerPhone}
-            onChange={(e) => setManagerPhone(e.target.value)}
-            placeholder="+1 555 000 0000"
-            className="flex-1 border border-line rounded-lg p-2.5 text-sm focus:border-brand outline-none"
-          />
-          <Button size="sm" onClick={saveManagerPhone} loading={savingPhone}>
-            Save
-          </Button>
-        </div>
-      </Card>
 
       <Card className="mt-6">
         <h2 className="font-semibold mb-1">Billing</h2>

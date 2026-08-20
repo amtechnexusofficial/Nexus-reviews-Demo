@@ -149,7 +149,36 @@ const KIOSK_QUESTIONS: Record<number, string[]> = {
 };
 
 export const kioskApi = {
-  getQuestions: async (rating: number) => delay({ questions: KIOSK_QUESTIONS[rating] || KIOSK_QUESTIONS[5] }),
+  getQuestions: async (rating: number, locationId?: number) => {
+    if (locationId) {
+      const db = getDb();
+      const custom = (db.locations[locationId]?.kioskQuestions || [])
+        .map((q: string) => String(q || '').trim())
+        .filter(Boolean);
+      if (custom.length > 0) return delay({ questions: custom });
+    }
+    return delay({ questions: KIOSK_QUESTIONS[rating] || KIOSK_QUESTIONS[5] });
+  },
+
+  getCustomQuestions: async (locationId: number) => {
+    const db = getDb();
+    const saved = db.locations[locationId]?.kioskQuestions;
+    const questions = Array.isArray(saved) ? [...saved] : ['', '', '', '', ''];
+    while (questions.length < 5) questions.push('');
+    return delay({ questions: questions.slice(0, 5) });
+  },
+
+  saveCustomQuestions: async (locationId: number, questions: string[]) => {
+    const db = getDb();
+    const loc = db.locations[locationId];
+    if (loc) {
+      const next = [...questions.map((q) => q.trim())];
+      while (next.length < 5) next.push('');
+      loc.kioskQuestions = next.slice(0, 5);
+      saveDb(db);
+    }
+    return delay({ questions: loc?.kioskQuestions || questions });
+  },
 
   generate: async (body: { locationId: number; rating: number; answers: { q: string; a: string }[]; targetLength: number }) => {
     const db = getDb();

@@ -55,7 +55,7 @@ export default function KioskPage() {
     setRating(v);
     setError('');
     try {
-      const { questions } = await kioskApi.getQuestions(v);
+      const { questions } = await kioskApi.getQuestions(v, locationId);
       setQuestions(questions);
       setStep('questions');
     } catch {
