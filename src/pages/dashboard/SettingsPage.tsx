@@ -1,9 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Card } from '../../components/ui';
 import { Button } from '../../components/Button';
-import { billingApi, feedbackApi, knowledgeApi } from '../../lib/api';
+import { billingApi, feedbackApi, knowledgeApi, type KnowledgeEntry } from '../../lib/api';
 import { useActiveLocation } from '../../lib/useLocation';
-import { Sparkles } from 'lucide-react';
+import { Sparkles, Upload, Trash2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useToast } from '../../lib/toast';
 
@@ -19,14 +19,20 @@ export default function SettingsPage() {
   const [loadingAiContext, setLoadingAiContext] = useState(false);
   const [savingAiContext, setSavingAiContext] = useState(false);
   const [saveStatus, setSaveStatus] = useState('');
-  const [autoReplyEnabled, setAutoReplyEnabled] = useState(false);
-  const [togglingAutoReply, setTogglingAutoReply] = useState(false);
   const aiContextDirty =
     websiteUrl.trim() !== savedWebsiteUrl.trim() || customContext.trim() !== savedCustomContext.trim();
+
+  const [entries, setEntries] = useState<KnowledgeEntry[]>([]);
+  const [factTitle, setFactTitle] = useState('');
+  const [factContent, setFactContent] = useState('');
+  const [addingFact, setAddingFact] = useState(false);
+  const [uploadingPdf, setUploadingPdf] = useState(false);
+  const pdfInputRef = useRef<HTMLInputElement>(null);
 
   const [billing, setBilling] = useState<{ stripeConfigured: boolean; subscription: { plan: string; status: string } } | null>(null);
   const [managerPhone, setManagerPhone] = useState('');
   const [savingPhone, setSavingPhone] = useState(false);
+  const [checkingOut, setCheckingOut] = useState(false);
 
   async function saveManagerPhone() {
     if (!locationId) return;
@@ -38,7 +44,12 @@ export default function SettingsPage() {
       setSavingPhone(false);
     }
   }
-  const [checkingOut, setCheckingOut] = useState(false);
+
+  async function loadEntries() {
+    if (!locationId) return;
+    const { entries } = await knowledgeApi.list(locationId);
+    setEntries(entries);
+  }
 
   useEffect(() => {
     billingApi.status().then(setBilling).catch(() => {});
@@ -50,46 +61,21 @@ export default function SettingsPage() {
       setCustomContext('');
       setSavedWebsiteUrl('');
       setSavedCustomContext('');
-      setAutoReplyEnabled(false);
+      setEntries([]);
       return;
     }
     setLoadingAiContext(true);
-    Promise.all([knowledgeApi.getContext(locationId), knowledgeApi.getAutoReply(locationId)])
-      .then(([context, autoReply]) => {
+    Promise.all([knowledgeApi.getContext(locationId), knowledgeApi.list(locationId)])
+      .then(([context, { entries }]) => {
         setWebsiteUrl(context.websiteUrl);
         setCustomContext(context.customContext);
         setSavedWebsiteUrl(context.websiteUrl);
         setSavedCustomContext(context.customContext);
-        setAutoReplyEnabled(Boolean(autoReply.enabled));
+        setEntries(entries);
       })
       .catch((error) => showError(error.message || 'Could not load AI knowledge.'))
       .finally(() => setLoadingAiContext(false));
   }, [locationId]);
-
-  async function toggleAutoReply() {
-    if (!locationId) return;
-    setTogglingAutoReply(true);
-    try {
-      const result = await knowledgeApi.setAutoReply(locationId, !autoReplyEnabled);
-      setAutoReplyEnabled(result.enabled);
-      if (!result.enabled) {
-        showSuccess('AI auto-reply is off.');
-      } else if (result.webhook && !result.webhook.ok) {
-        showError(
-          result.webhook.error ||
-            'Auto-reply is on, but the Postproxy webhook could not be registered — replies will not send until that is fixed.'
-        );
-      } else {
-        showSuccess(
-          'AI auto-reply is on. New DMs will be answered from your AI knowledge when possible.'
-        );
-      }
-    } catch (error: any) {
-      showError(error.message || 'Could not update AI auto-reply.');
-    } finally {
-      setTogglingAutoReply(false);
-    }
-  }
 
   async function saveAiContext() {
     if (!locationId || !aiContextDirty) return;
@@ -152,6 +138,48 @@ export default function SettingsPage() {
     }
   }
 
+  async function addFact() {
+    if (!locationId || !factTitle.trim() || !factContent.trim()) return;
+    setAddingFact(true);
+    try {
+      await knowledgeApi.create({ locationId, title: factTitle.trim(), content: factContent.trim() });
+      setFactTitle('');
+      setFactContent('');
+      await loadEntries();
+      showSuccess('Fact added.');
+    } catch (error: any) {
+      showError(error.message || 'Could not add fact.');
+    } finally {
+      setAddingFact(false);
+    }
+  }
+
+  async function removeFact(id: number) {
+    try {
+      await knowledgeApi.remove(id);
+      await loadEntries();
+    } catch (error: any) {
+      showError(error.message || 'Could not remove fact.');
+    }
+  }
+
+  async function handlePdfUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    if (!locationId) return;
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingPdf(true);
+    try {
+      await knowledgeApi.uploadPdf(locationId, file);
+      await loadEntries();
+      showSuccess(`Added facts from ${file.name}.`);
+    } catch (error: any) {
+      showError(error.message || 'Could not upload PDF.');
+    } finally {
+      setUploadingPdf(false);
+      if (pdfInputRef.current) pdfInputRef.current.value = '';
+    }
+  }
+
   async function upgrade() {
     setCheckingOut(true);
     try {
@@ -173,39 +201,13 @@ export default function SettingsPage() {
             <Sparkles className="w-4 h-4 text-brand" /> AI knowledge
           </h2>
           <p className="text-sm text-ink-soft mb-4">
-            This information personalizes AI-generated posts and DM replies for the selected location.
+            This information personalizes AI-generated posts and DM replies for your business.
           </p>
 
           {loadingAiContext ? (
             <p className="text-sm text-ink-soft">Loading...</p>
           ) : (
             <>
-              <div className="flex items-center justify-between gap-4 mb-5 pb-5 border-b border-line">
-                <div className="min-w-0">
-                  <p className="text-sm font-semibold mb-0.5">Automatic AI replies to DMs</p>
-                  <p className="text-xs text-ink-soft leading-relaxed">
-                    Off by default. When on, the AI answers only from your website crawl and notes below.
-                    If it doesn&apos;t know, or the customer asks for a person, it tells them a human will
-                    contact them soon and flags the chat for you.
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={toggleAutoReply}
-                  disabled={togglingAutoReply}
-                  aria-pressed={autoReplyEnabled}
-                  className={`w-12 h-7 rounded-full transition-colors relative shrink-0 ${
-                    autoReplyEnabled ? 'bg-brand' : 'bg-line'
-                  }`}
-                >
-                  <span
-                    className={`absolute top-1 w-5 h-5 rounded-full bg-white transition-transform ${
-                      autoReplyEnabled ? 'translate-x-6' : 'translate-x-1'
-                    }`}
-                  />
-                </button>
-              </div>
-
               <label className="block text-xs font-medium mb-1.5">Business website</label>
               <input
                 type="url"
@@ -219,7 +221,7 @@ export default function SettingsPage() {
               <textarea
                 value={customContext}
                 onChange={(e) => setCustomContext(e.target.value)}
-                rows={7}
+                rows={5}
                 placeholder="Add your opening hours, products or menu, prices, offers, policies, brand voice, audience, and anything else the AI should know."
                 className="w-full border border-line rounded-lg p-2.5 text-sm mb-2 focus:border-brand outline-none resize-y"
               />
@@ -233,6 +235,79 @@ export default function SettingsPage() {
               {savingAiContext && saveStatus && (
                 <p className="text-xs text-brand mt-2 font-medium">{saveStatus}</p>
               )}
+
+              <div className="mt-6 pt-5 border-t border-line">
+                <h3 className="font-semibold text-sm mb-1">Knowledge base facts</h3>
+                <p className="text-xs text-ink-soft mb-4 leading-relaxed">
+                  Add specific facts one at a time — opening hours, menu items, prices, policies, FAQs. These
+                  are used alongside your website crawl and business context above. You can also upload a
+                  text-based PDF (menu, price list, policy doc) and we&apos;ll extract the text for you.
+                </p>
+
+                <input
+                  value={factTitle}
+                  onChange={(e) => setFactTitle(e.target.value)}
+                  placeholder="Title — e.g. 'Opening hours', 'Menu'"
+                  className="w-full border border-line rounded-lg p-2.5 text-sm mb-2 focus:border-brand outline-none"
+                />
+                <textarea
+                  value={factContent}
+                  onChange={(e) => setFactContent(e.target.value)}
+                  rows={3}
+                  placeholder="Paste the actual details here..."
+                  className="w-full border border-line rounded-lg p-2.5 text-sm mb-3 focus:border-brand outline-none resize-y"
+                />
+
+                <div className="flex gap-2 flex-wrap mb-4">
+                  <Button
+                    size="sm"
+                    onClick={addFact}
+                    loading={addingFact}
+                    disabled={!factTitle.trim() || !factContent.trim()}
+                  >
+                    Add fact
+                  </Button>
+                  <input
+                    ref={pdfInputRef}
+                    type="file"
+                    accept="application/pdf,.pdf"
+                    onChange={handlePdfUpload}
+                    className="hidden"
+                  />
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    onClick={() => pdfInputRef.current?.click()}
+                    loading={uploadingPdf}
+                  >
+                    <Upload className="w-3.5 h-3.5" /> Upload PDF
+                  </Button>
+                </div>
+
+                {entries.length > 0 && (
+                  <div className="space-y-2">
+                    {entries.map((entry) => (
+                      <div
+                        key={entry.id}
+                        className="border border-line rounded-lg p-3 flex items-start justify-between gap-3"
+                      >
+                        <div className="min-w-0">
+                          <div className="text-sm font-medium">{entry.title}</div>
+                          <p className="text-xs text-ink-soft mt-0.5 line-clamp-3">{entry.content}</p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => removeFact(entry.id)}
+                          className="text-ink-soft hover:text-danger shrink-0"
+                          title="Remove fact"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </>
           )}
         </Card>
@@ -244,7 +319,7 @@ export default function SettingsPage() {
           <p className="text-sm text-ink-soft">
             Reviews and posting both use the same connection now — go to{' '}
             <a href="/dashboard/connections" className="text-brand underline">Connections</a> and click
-            "Connect" under Google Business. No separate linking step needed here anymore.
+            &quot;Connect&quot; under Google Business. No separate linking step needed here anymore.
           </p>
         </Card>
       )}

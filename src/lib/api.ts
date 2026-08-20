@@ -986,6 +986,21 @@ export const knowledgeApi = {
     return delay({ ok: true });
   },
 
+  uploadPdf: async (locationId: number, file: File) => {
+    const db = getDb();
+    const title = file.name.replace(/\.pdf$/i, '') || 'Uploaded PDF';
+    const entry = {
+      id: db.nextLocalId++,
+      locationId,
+      title,
+      content: `Extracted text from ${file.name} (demo). Replace this with real document contents as needed.`,
+      createdAt: new Date().toISOString(),
+    };
+    db.knowledgeEntries.push(entry);
+    saveDb(db);
+    return delay({ entry });
+  },
+
   getAutoReply: async (locationId: number) => {
     const db = getDb();
     const loc = db.locations[locationId];

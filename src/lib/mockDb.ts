@@ -154,6 +154,19 @@ function seedReviews(locationId: number) {
   return reviews;
 }
 
+/** Prefer the demo website URL shown in Settings for existing browser demos. */
+export function ensureDemoWebsiteUrl(db: DemoDb) {
+  let changed = false;
+  for (const business of Object.values(db.businesses)) {
+    if (!business) continue;
+    if (!business.websiteUrl || business.websiteUrl === 'https://example.com') {
+      business.websiteUrl = 'https://amtechnexus.com/';
+      changed = true;
+    }
+  }
+  return changed;
+}
+
 /** Keep seeded competitor ratings at 4.5 / 4.1 / 4.3 for existing browser demos. */
 export function ensureCompetitorRatings(db: DemoDb) {
   const targets: Record<string, number> = {
@@ -402,8 +415,8 @@ function seedBusiness(id: number, name: string) {
     plan: 'growth',
     subscriptionStatus: 'active',
     email: `owner+${id}@demo.local`,
-    websiteUrl: 'https://example.com',
-    customContext: 'Family-owned spot, opened 2016, known for weekend brunch and locally sourced ingredients.',
+    websiteUrl: 'https://amtechnexus.com/',
+    customContext: '',
     websiteContextFetchedAt: daysAgo(10),
     createdAt: daysAgo(200),
   };
@@ -490,7 +503,8 @@ export function getDb(): DemoDb {
       const attentionFixed = ensureAttentionReviews(cached as DemoDb);
       const requestsFixed = ensureEmailOnlyRequests(cached as DemoDb);
       const competitorsFixed = ensureCompetitorRatings(cached as DemoDb);
-      if (attentionFixed || requestsFixed || competitorsFixed) {
+      const websiteFixed = ensureDemoWebsiteUrl(cached as DemoDb);
+      if (attentionFixed || requestsFixed || competitorsFixed || websiteFixed) {
         saveDb(cached as DemoDb);
       }
       return cached as DemoDb;
