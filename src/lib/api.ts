@@ -349,22 +349,22 @@ export const competitorsApi = {
 // ---------------- review requests ----------------
 export interface ReviewRequest {
   id: number;
-  channel: 'sms' | 'email';
+  channel: 'email';
   customerContact: string;
   customerName: string | null;
-  status: 'queued' | 'sent' | 'clicked' | 'failed';
+  status: 'sent';
   createdAt: string;
 }
 
 export const requestsApi = {
-  status: async () => delay({ smsConfigured: true, emailConfigured: true }),
+  status: async () => delay({ emailConfigured: true }),
 
-  create: async (body: { locationId: number; channel: 'sms' | 'email'; customerContact: string; customerName?: string }) => {
+  create: async (body: { locationId: number; channel?: 'email'; customerContact: string; customerName?: string }) => {
     const db = getDb();
     const request = {
       id: db.nextLocalId++,
       locationId: body.locationId,
-      channel: body.channel,
+      channel: 'email' as const,
       customerContact: body.customerContact,
       customerName: body.customerName || null,
       status: 'sent' as const,
@@ -379,7 +379,8 @@ export const requestsApi = {
     const db = getDb();
     return delay({
       requests: db.requests
-        .filter((r) => r.locationId === locationId)
+        .filter((r) => r.locationId === locationId && r.channel !== 'sms')
+        .map((r) => ({ ...r, channel: 'email' as const, status: 'sent' as const }))
         .sort((a, b) => +new Date(b.createdAt) - +new Date(a.createdAt)),
     });
   },

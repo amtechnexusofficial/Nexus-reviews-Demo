@@ -154,6 +154,26 @@ function seedReviews(locationId: number) {
   return reviews;
 }
 
+/** Drop SMS requests and normalize remaining history to email / sent. */
+export function ensureEmailOnlyRequests(db: DemoDb) {
+  let changed = false;
+  const kept = db.requests.filter((r) => {
+    if (r.channel === 'sms') {
+      changed = true;
+      return false;
+    }
+    return true;
+  });
+  db.requests = kept.map((r) => {
+    if (r.channel !== 'email' || r.status !== 'sent') {
+      changed = true;
+      return { ...r, channel: 'email', status: 'sent' };
+    }
+    return r;
+  });
+  return changed;
+}
+
 /** Ensure older browser demos pick up the attention reviews without a full reset. */
 export function ensureAttentionReviews(db: DemoDb) {
   const attentionSeeds = [
@@ -253,14 +273,14 @@ function seedCompetitors(locationId: number) {
 }
 
 function seedRequests(locationId: number) {
-  const statuses = ['sent', 'clicked', 'queued', 'sent', 'failed'];
-  return statuses.map((status, i) => ({
+  const names = ['Alex', 'Riley', 'Sam'];
+  return names.map((customerName, i) => ({
     id: i + 1,
     locationId,
-    channel: i % 2 === 0 ? 'sms' : 'email',
-    customerContact: i % 2 === 0 ? '+1 (555) 210-88' + (10 + i) : `customer${i}@example.com`,
-    customerName: ['Jordan', 'Alex', 'Riley', 'Sam', 'Taylor'][i],
-    status,
+    channel: 'email',
+    customerContact: `customer${i + 1}@example.com`,
+    customerName,
+    status: 'sent',
     createdAt: daysAgo(i + 1),
   }));
 }
@@ -449,7 +469,9 @@ export function getDb(): DemoDb {
     const raw = localStorage.getItem(DB_KEY);
     if (raw) {
       cached = JSON.parse(raw);
-      if (ensureAttentionReviews(cached as DemoDb)) {
+      const attentionFixed = ensureAttentionReviews(cached as DemoDb);
+      const requestsFixed = ensureEmailOnlyRequests(cached as DemoDb);
+      if (attentionFixed || requestsFixed) {
         saveDb(cached as DemoDb);
       }
       return cached as DemoDb;
