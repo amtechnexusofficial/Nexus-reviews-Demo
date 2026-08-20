@@ -274,7 +274,7 @@ export default function DashboardHome() {
             </div>
             {latestReview ? (
               <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
+                <div className="min-w-0 flex-1">
                   <StarRating value={latestReview.rating} readOnly size={16} />
                   <div className="text-xs text-ink-soft mt-1.5 mb-2">
                     {latestReview.authorName || 'Anonymous'} ·{' '}
@@ -286,9 +286,11 @@ export default function DashboardHome() {
                     )}
                   </p>
                 </div>
-                <Badge tone={latestReview.hasResponse ? 'success' : 'warning'}>
-                  {latestReview.hasResponse ? 'Replied' : 'Awaiting reply'}
-                </Badge>
+                <div className="shrink-0 pt-0.5">
+                  <Badge tone={latestReview.hasResponse ? 'success' : 'warning'}>
+                    {latestReview.hasResponse ? 'Replied' : 'Awaiting reply'}
+                  </Badge>
+                </div>
               </div>
             ) : (
               <p className="text-sm text-ink-soft">No reviews yet.</p>

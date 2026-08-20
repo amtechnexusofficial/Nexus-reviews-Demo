@@ -24,7 +24,9 @@ export function Badge({
     brand: 'bg-gradient-to-r from-brand/15 to-brand-2/15 text-brand border-transparent',
   };
   return (
-    <span className={`inline-flex items-center text-xs font-semibold px-2.5 py-1 rounded-full border ${tones[tone]}`}>
+    <span
+      className={`inline-flex items-center justify-center text-xs font-semibold leading-none whitespace-nowrap shrink-0 px-2.5 py-1.5 rounded-full border ${tones[tone]}`}
+    >
       {children}
     </span>
   );
