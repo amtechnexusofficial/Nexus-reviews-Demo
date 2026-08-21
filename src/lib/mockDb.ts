@@ -74,7 +74,8 @@ function seedLocation(businessId: number, locationId: number, name: string, addr
     id: locationId,
     businessId,
     address,
-    googleReviewLink: 'https://maps.app.goo.gl/vK8vS8uc48e8TFY28',
+    googleReviewLink:
+      'https://www.google.com/maps/place/The+Rustic+Table/@42.7939169,-72.3764112,17z/data=!4m8!3m7!1s0x89e11481747d30bb:0xb7fa24c3ea1acab2!8m2!3d42.7939169!4d-72.3738363!9m1!1b1!16s%2Fg%2F11c3pmj9ww?entry=ttu&g_ep=EgoyMDI2MDgxNy4wIKXMDSoASAFQAw%3D%3D',
     googlePlaceId: 'ChIJdemo000000000000000000000',
     dmAutoReplyEnabled: false,
     managerPhone: '+1 (555) 019-2828',
@@ -269,7 +270,8 @@ export function ensureDemoWebsiteUrl(db: DemoDb) {
 
 /** Prefer the demo Google review link for existing browser demos. */
 export function ensureDemoReviewLink(db: DemoDb) {
-  const target = 'https://maps.app.goo.gl/vK8vS8uc48e8TFY28';
+  const target =
+    'https://www.google.com/maps/place/The+Rustic+Table/@42.7939169,-72.3764112,17z/data=!4m8!3m7!1s0x89e11481747d30bb:0xb7fa24c3ea1acab2!8m2!3d42.7939169!4d-72.3738363!9m1!1b1!16s%2Fg%2F11c3pmj9ww?entry=ttu&g_ep=EgoyMDI2MDgxNy4wIKXMDSoASAFQAw%3D%3D';
   let changed = false;
   for (const loc of Object.values(db.locations)) {
     if (!loc) continue;
@@ -277,7 +279,8 @@ export function ensureDemoReviewLink(db: DemoDb) {
       !loc.googleReviewLink ||
       loc.googleReviewLink === 'https://g.page/r/demo-business/review' ||
       loc.googleReviewLink.includes('5763oeY3JVkaCppy7') ||
-      loc.googleReviewLink.includes('xK9mR2pQ7nLw4vTb8');
+      loc.googleReviewLink.includes('xK9mR2pQ7nLw4vTb8') ||
+      loc.googleReviewLink.includes('vK8vS8uc48e8TFY28');
     if (isPlaceholder && loc.googleReviewLink !== target) {
       loc.googleReviewLink = target;
       changed = true;
