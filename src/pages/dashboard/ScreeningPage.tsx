@@ -126,7 +126,12 @@ export default function ScreeningPage() {
                     &quot;{h.reviewText.slice(0, 160)}
                     {h.reviewText.length > 160 ? '…' : ''}&quot;
                   </p>
-                  {h.reasoning && <p className="text-xs text-ink leading-relaxed">{h.reasoning}</p>}
+                  {h.reasoning && (
+                    <div className="mt-2 pt-2 border-t border-line">
+                      <div className="text-xs font-medium text-ink mb-0.5">Why it was flagged</div>
+                      <p className="text-xs text-ink-soft leading-relaxed">{h.reasoning}</p>
+                    </div>
+                  )}
                 </Card>
               ))}
             </div>

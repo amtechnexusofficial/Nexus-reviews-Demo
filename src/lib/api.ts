@@ -280,9 +280,10 @@ export const screeningApi = {
     const db = getDb();
     const loc = db.locations[locationId];
     const lastScan = loc?.lastScreeningScan || null;
-    const flagged = db.screeningLogs.filter(
-      (l) => l.locationId === locationId && /flagged|likely violation/i.test(l.verdict)
-    );
+    const flagged = db.screeningLogs
+      .filter((l) => l.locationId === locationId && /flagged|likely violation/i.test(l.verdict))
+      .slice()
+      .sort((a, b) => +new Date(b.createdAt) - +new Date(a.createdAt));
     return delay({
       lastScan: lastScan
         ? {

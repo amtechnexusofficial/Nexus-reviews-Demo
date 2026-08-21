@@ -74,7 +74,7 @@ function seedLocation(businessId: number, locationId: number, name: string, addr
     id: locationId,
     businessId,
     address,
-    googleReviewLink: 'https://maps.app.goo.gl/xK9mR2pQ7nLw4vTb8',
+    googleReviewLink: 'https://maps.app.goo.gl/vK8vS8uc48e8TFY28',
     googlePlaceId: 'ChIJdemo000000000000000000000',
     dmAutoReplyEnabled: false,
     managerPhone: '+1 (555) 019-2828',
@@ -85,7 +85,7 @@ function seedLocation(businessId: number, locationId: number, name: string, addr
       'Anything we could improve for next time?',
       '',
     ],
-    lastScreeningScan: { scanned: 0, flagged: 0, at: new Date().toISOString() },
+    lastScreeningScan: { scanned: 5, flagged: 2, at: daysAgo(0.1) },
   };
 }
 
@@ -223,15 +223,28 @@ export function ensureInsightReports(db: DemoDb) {
   return true;
 }
 
-/** Seed last screening scan stats on older browser demos. */
+/** Seed last screening scan stats and flagged demos on older browser demos. */
 export function ensureScreeningScan(db: DemoDb) {
   let changed = false;
   for (const loc of Object.values(db.locations)) {
     if (!loc) continue;
-    if (!loc.lastScreeningScan) {
-      loc.lastScreeningScan = { scanned: 0, flagged: 0, at: new Date().toISOString() };
+    const scan = loc.lastScreeningScan;
+    if (!scan || (scan.scanned === 0 && scan.flagged === 0)) {
+      loc.lastScreeningScan = { scanned: 5, flagged: 2, at: daysAgo(0.1) };
       changed = true;
     }
+  }
+
+  for (const locationId of Object.keys(db.locations).map(Number)) {
+    const hasFlagged = db.screeningLogs.some(
+      (l) => l.locationId === locationId && /flagged|likely violation/i.test(l.verdict)
+    );
+    if (hasFlagged) continue;
+    const seeds = seedScreeningLogs(locationId);
+    for (const seed of seeds) {
+      db.screeningLogs.push({ ...seed, id: db.nextLocalId++ });
+    }
+    changed = true;
   }
   return changed;
 }
@@ -254,17 +267,19 @@ export function ensureDemoWebsiteUrl(db: DemoDb) {
   return changed;
 }
 
-/** Prefer a dummy Google review link for existing browser demos. */
+/** Prefer the demo Google review link for existing browser demos. */
 export function ensureDemoReviewLink(db: DemoDb) {
+  const target = 'https://maps.app.goo.gl/vK8vS8uc48e8TFY28';
   let changed = false;
   for (const loc of Object.values(db.locations)) {
     if (!loc) continue;
-    if (
+    const isPlaceholder =
       !loc.googleReviewLink ||
       loc.googleReviewLink === 'https://g.page/r/demo-business/review' ||
-      loc.googleReviewLink.includes('5763oeY3JVkaCppy7')
-    ) {
-      loc.googleReviewLink = 'https://maps.app.goo.gl/xK9mR2pQ7nLw4vTb8';
+      loc.googleReviewLink.includes('5763oeY3JVkaCppy7') ||
+      loc.googleReviewLink.includes('xK9mR2pQ7nLw4vTb8');
+    if (isPlaceholder && loc.googleReviewLink !== target) {
+      loc.googleReviewLink = target;
       changed = true;
     }
   }
@@ -408,8 +423,35 @@ function seedKioskSessions(locationId: number) {
   return sessions;
 }
 
-function seedScreeningLogs() {
-  return [];
+function seedScreeningLogs(locationId: number) {
+  return [
+    {
+      id: 1,
+      locationId,
+      reviewText:
+        "This place is a total scam!!! Fake reviews everywhere. Don't ever go here or give them your money. Absolute frauds.",
+      verdict: 'flagged',
+      category: 'spam / fake content',
+      reasoning:
+        'Uses inflammatory accusations (“scam”, “fraud”) with no visit details, order reference, or specific experience. Language matches common spam and competitor-attack patterns Google’s policy targets — not a good-faith customer complaint.',
+      flagText:
+        'This review makes unverifiable fraud accusations without describing a real visit, which appears to violate Google’s spam and fake content guidelines.',
+      createdAt: daysAgo(2),
+    },
+    {
+      id: 2,
+      locationId,
+      reviewText:
+        "I work at Northside Bistro down the street and trust me, nobody should eat here. Our place is way better and their kitchen is filthy.",
+      verdict: 'flagged',
+      category: 'conflict of interest',
+      reasoning:
+        'The reviewer openly identifies as staff at a competing restaurant and uses the review to promote their own business while attacking this one. That is a clear conflict of interest under Google’s review policies, independent of whether the criticism is negative.',
+      flagText:
+        'Reviewer self-identifies as an employee of a nearby competitor and appears to be posting to promote their own business, which conflicts with Google’s conflict-of-interest rules.',
+      createdAt: daysAgo(1),
+    },
+  ];
 }
 
 function seedCompetitors(locationId: number) {
@@ -546,7 +588,7 @@ function buildFreshBusinessData(businessId: number, locationId: number, business
     location: seedLocation(businessId, locationId, businessName, address),
     reviews: seedReviews(locationId),
     kioskSessions: seedKioskSessions(locationId),
-    screeningLogs: seedScreeningLogs(),
+    screeningLogs: seedScreeningLogs(locationId),
     competitors: seedCompetitors(locationId),
     requests: seedRequests(locationId),
     employees: seedEmployees(locationId),
