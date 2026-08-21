@@ -3,7 +3,7 @@
 // everything reads from here.
 
 export const branding = {
-  productName: import.meta.env.VITE_BRAND_NAME || 'ReviewShake',
+  productName: import.meta.env.VITE_BRAND_NAME || 'Nexus Business Suite',
   logoUrl: import.meta.env.VITE_BRAND_LOGO_URL || null, // falls back to text wordmark if unset
   brandColor: import.meta.env.VITE_BRAND_COLOR || '#7C3AED',
   brandColorHover: import.meta.env.VITE_BRAND_COLOR_HOVER || '#6D28D9',

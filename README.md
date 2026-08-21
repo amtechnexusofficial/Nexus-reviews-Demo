@@ -21,10 +21,10 @@ hosted anywhere: Cloudflare Pages, GitHub Pages, Netlify, Vercel, etc.
 - **Sign up** with any email/password to spin up a brand-new demo business,
   pre-seeded with sample reviews, competitors, posts, DMs, etc.
 - **Log in** with the seeded demo account:
-  - Email: `demo@example.com`
+  - Email: `demo@amtechnexus.com`
   - Password: `demo1234`
 - **Admin console** (`/admin`) is available via a separate seeded login:
-  - Email: `admin@example.com`
+  - Email: `admin@amtechnexus.com`
   - Password: `admin1234`
 - AI features (review reply drafts, screening, the advisor chat, caption/
   post generation, image generation, DM auto-replies, etc.) return

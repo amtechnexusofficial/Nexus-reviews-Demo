@@ -162,6 +162,22 @@ function seedReviews(locationId: number) {
   return reviews;
 }
 
+/** Rename seeded demo login emails on older browser demos. */
+export function ensureDemoEmails(db: DemoDb) {
+  let changed = false;
+  for (const user of db.users) {
+    if (user.email === 'demo@example.com') {
+      user.email = 'demo@amtechnexus.com';
+      changed = true;
+    }
+    if (user.email === 'admin@example.com') {
+      user.email = 'admin@amtechnexus.com';
+      changed = true;
+    }
+  }
+  return changed;
+}
+
 /** Seed the Insights report list for older browser demos. */
 export function ensureInsightReports(db: DemoDb) {
   if (db.analyticsSnapshots.length >= 3) return false;
@@ -550,8 +566,8 @@ function seedFullDb(): DemoDb {
   const db: DemoDb = {
     nextLocalId: 1000,
     users: [
-      { email: 'demo@example.com', password: 'demo1234', businessId, isPlatformAdmin: false },
-      { email: 'admin@example.com', password: 'admin1234', businessId: -1, isPlatformAdmin: true },
+      { email: 'demo@amtechnexus.com', password: 'demo1234', businessId, isPlatformAdmin: false },
+      { email: 'admin@amtechnexus.com', password: 'admin1234', businessId: -1, isPlatformAdmin: true },
     ],
     businesses: { [businessId]: fresh.business },
     locations: { [locationId]: fresh.location },
@@ -634,6 +650,7 @@ export function getDb(): DemoDb {
       const kioskFixed = ensureKioskQuestions(cached as DemoDb);
       const screeningFixed = ensureScreeningScan(cached as DemoDb);
       const insightsFixed = ensureInsightReports(cached as DemoDb);
+      const emailsFixed = ensureDemoEmails(cached as DemoDb);
       if (
         attentionFixed ||
         requestsFixed ||
@@ -642,7 +659,8 @@ export function getDb(): DemoDb {
         reviewLinkFixed ||
         kioskFixed ||
         screeningFixed ||
-        insightsFixed
+        insightsFixed ||
+        emailsFixed
       ) {
         saveDb(cached as DemoDb);
       }
