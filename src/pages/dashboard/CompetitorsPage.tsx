@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Trash2, RefreshCw, Link2, Sparkles, ChevronDown } from 'lucide-react';
-import { Card, EmptyState, Badge } from '../../components/ui';
+import { Trash2, RefreshCw, Link2, ChevronDown } from 'lucide-react';
+import { Card, EmptyState } from '../../components/ui';
 import { Button } from '../../components/Button';
 import { competitorsApi, placesApi, Competitor } from '../../lib/api';
 import { useActiveLocation } from '../../lib/useLocation';
@@ -25,8 +25,6 @@ export default function CompetitorsPage() {
 
   const [placesConfigured, setPlacesConfigured] = useState(false);
   const [refreshingId, setRefreshingId] = useState<number | null>(null);
-  const [insights, setInsights] = useState<Record<number, string>>({});
-  const [loadingInsight, setLoadingInsight] = useState<number | null>(null);
 
   useEffect(() => {
     placesApi.status().then((s) => setPlacesConfigured(s.configured));
@@ -96,18 +94,6 @@ export default function CompetitorsPage() {
       showError('Refresh failed — try again in a moment.');
     } finally {
       setRefreshingId(null);
-    }
-  }
-
-  async function getInsight(id: number) {
-    setLoadingInsight(id);
-    try {
-      const { insight } = await competitorsApi.insight(id);
-      setInsights((prev) => ({ ...prev, [id]: insight }));
-    } catch {
-      showError('Could not generate an insight right now.');
-    } finally {
-      setLoadingInsight(null);
     }
   }
 
@@ -226,20 +212,6 @@ export default function CompetitorsPage() {
                   </button>
                 </div>
               </div>
-
-              {insights[comp.id] ? (
-                <p className="text-xs text-ink-soft mt-2 pt-2 border-t border-line leading-relaxed">{insights[comp.id]}</p>
-              ) : (
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  className="mt-2 !px-0"
-                  onClick={() => getInsight(comp.id)}
-                  loading={loadingInsight === comp.id}
-                >
-                  <Sparkles className="w-3.5 h-3.5" /> Get AI insight
-                </Button>
-              )}
             </Card>
           ))}
         </div>
